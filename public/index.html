@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF AI Assistant</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:#edf2ff}
+main{max-width:850px;margin:40px auto;padding:20px}
+h1{font-size:34px;margin-bottom:8px}.sub{color:#a9b5d0;margin-bottom:28px}
+.card{background:#141c31;border:1px solid #2a3652;border-radius:16px;padding:22px;margin:18px 0}
+h2{font-size:19px;margin-top:0}input,button{font:inherit;border-radius:9px;padding:13px}
+input[type=file],input[type=text]{width:100%;background:#0b1020;color:white;border:1px solid #394967;margin:10px 0}
+button{border:0;background:#7c8cff;color:#081020;font-weight:bold;cursor:pointer;margin-top:8px}
+button:disabled{opacity:.5}#status,#answer{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.muted{color:#a9b5d0;font-size:14px}.source{border-top:1px solid #394967;padding-top:12px;margin-top:12px}
+</style>
+</head>
+<body><main>
+<h1>PDF AI Assistant</h1>
+<p class="sub">Upload a PDF, ask questions, and get answers based on your document.</p>
+<section class="card">
+<h2>1. Upload your PDF</h2>
+<form id="uploadForm">
+<input id="pdf" type="file" accept=".pdf,application/pdf" required>
+<button id="uploadBtn" type="submit">Upload & Index PDF</button>
+</form><p id="status" class="muted"></p>
+</section>
+<section class="card">
+<h2>2. Ask a question</h2>
+<form id="askForm">
+<input id="question" type="text" placeholder="Ask something about your PDF..." required>
+<button id="askBtn" type="submit">Ask AI</button>
+</form>
+<div id="answer"></div>
+<div id="sources"></div>
+</section>
+<section class="card">
+<h2>Indexed documents</h2>
+<button id="refreshBtn" type="button">Refresh documents</button>
+<div id="documents" class="muted"></div>
+</section>
+<script>
+const $=id=>document.getElementById(id);
+async function request(url,options={}){
+ const response=await fetch(url,options);
+ const data=await response.json().catch(()=>({detail:"Unexpected server response"}));
+ if(!response.ok)throw new Error(data.detail||"Request failed");
+ return data;
+}
+$("uploadForm").addEventListener("submit",async e=>{
+ e.preventDefault();const file=$("pdf").files[0];if(!file)return;
+ $("uploadBtn").disabled=true;$("status").textContent="Uploading and indexing...";
+ try{
+  const body=new FormData();body.append("file",file);
+  const d=await request("/api/ingest",{method:"POST",body});
+  $("status").textContent=`Success! ${d.filename}\nPages: ${d.pages} | Chunks: ${d.chunks} | Time: ${Number(d.seconds).toFixed(1)}s\nNamespace: ${d.namespace}`;
+  await loadDocuments();
+ }catch(err){$("status").textContent="Error: "+err.message}
+ finally{$("uploadBtn").disabled=false}
+});
+$("askForm").addEventListener("submit",async e=>{
+ e.preventDefault();const question=$("question").value.trim();if(!question)return;
+ $("askBtn").disabled=true;$("answer").textContent="Thinking...";
+ $("sources").replaceChildren();
+ try{
+  const d=await request("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
+  $("answer").textContent=d.answer||"No answer returned.";
+  (d.sources||[]).forEach((s,i)=>{
+   const div=document.createElement("div");div.className="source";
+   const title=document.createElement("strong");title.textContent=`Source ${i+1} · Score: ${s.score}`;
+   const p=document.createElement("p");p.textContent=s.text;
+   div.append(title,p);$("sources").append(div);
+  });
+ }catch(err){$("answer").textContent="Error: "+err.message}
+ finally{$("askBtn").disabled=false}
+});
+async function loadDocuments(){
+ $("documents").textContent="Loading...";
+ try{
+  const d=await request("/api/documents");
+  $("documents").textContent=JSON.stringify(d.documents??d,null,2);
+ }catch(err){$("documents").textContent="Error: "+err.message}
+}
+$("refreshBtn").addEventListener("click",loadDocuments);
+loadDocuments();
+</script>
+</main></body></html>
