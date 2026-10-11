@@ -1,41 +1,42 @@
-﻿import os
-from functools import lru_cache
-
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from pydantic import BaseModel, Field
-
-from rag.config import get_settings
-from rag.pipeline import RAGPipeline
-
-app = FastAPI(title="PDF RAG API")
-
-
-@lru_cache(maxsize=1)
-def get_pipeline():
-    settings = get_settings()
-    return RAGPipeline(settings)
-
-
-class AskRequest(BaseModel):
-    question: str = Field(min_length=1, max_length=5000)
-    namespaces: list[str] = Field(min_length=1, max_length=50)
-    top_k: int = Field(default=4, ge=1, le=10)
-    threshold: float = Field(default=0.30, ge=0, le=1)
-
-
-@app.get("/")
-def health():
-    return {"status": "ok", "message": "PDF RAG API is running"}
-
-
-@app.get("/api/documents")
-def list_documents():
-    try:
-        return {"documents": get_pipeline().list_documents()}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Could not list documents")
-
-
+﻿
+import os 
+from functools import lru_cache 
+ 
+from fastapi import FastAPI, File, HTTPException, UploadFile 
+from pydantic import BaseModel, Field 
+ 
+from rag.config import get_settings 
+from rag.pipeline import RAGPipeline 
+ 
+app = FastAPI(title="PDF RAG API") 
+ 
+ 
+@lru_cache(maxsize=1) 
+def get_pipeline(): 
+    settings = get_settings() 
+    return RAGPipeline(settings) 
+ 
+ 
+class AskRequest(BaseModel): 
+    question: str = Field(min_length=1, max_length=5000) 
+    namespaces: list[str] = Field(min_length=1, max_length=50) 
+    top_k: int = Field(default=4, ge=1, le=10) 
+    threshold: float = Field(default=0.30, ge=0, le=1) 
+ 
+ 
+@app.get("/") 
+def health(): 
+    return {"status": "ok", "message": "PDF RAG API is running"} 
+ 
+ 
+@app.get("/api/documents") 
+def list_documents(): 
+    try: 
+        return {"documents": get_pipeline().list_documents()} 
+    except Exception: 
+        raise HTTPException(status_code=500, detail="Could not list documents") 
+ 
+ 
 @app.post("/api/ingest")
 async def ingest_pdf(file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -81,10 +82,9 @@ def ask_question(request: AskRequest):
                 for source in answer.sources
             ],
         }
-   
+
     except Exception as exc:
-        import logging
-        logging.exception("Ask endpoint failed")
+        print(f"Ask endpoint failed: {type(exc).__name__}: {exc}")
         raise HTTPException(
             status_code=500,
             detail=f"Ask failed: {type(exc).__name__}: {exc}",
@@ -98,3 +98,4 @@ def delete_document(namespace: str):
         return {"deleted": namespace}
     except Exception:
         raise HTTPException(status_code=500, detail="Could not delete document")
+
