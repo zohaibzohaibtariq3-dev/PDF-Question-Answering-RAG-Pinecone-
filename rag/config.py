@@ -46,14 +46,15 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         pinecone_api_key=os.getenv("PINECONE_API_KEY", "").strip(),
-        pinecone_index=os.getenv("PINECONE_INDEX_NAME", "pdf-rag-index").strip(),
+        pinecone_index=os.getenv("PINECONE_INDEX_NAME", "pdf-rag-index-e5").strip(),
         pinecone_cloud=os.getenv("PINECONE_CLOUD", "aws").strip(),
         pinecone_region=os.getenv("PINECONE_REGION", "us-east-1").strip(),
         groq_api_key=os.getenv("GROQ_API_KEY", "").strip(),
         groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip(),
         embedding_model=os.getenv(
-            "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+            "EMBEDDING_MODEL", "multilingual-e5-large"
         ).strip(),
         max_pdf_mb=int(os.getenv("MAX_PDF_MB", "20")),
         log_dir=Path(os.getenv("LOG_DIR", str(BASE_DIR / "logs"))),
     )
+

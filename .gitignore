@@ -7,3 +7,5 @@ __pycache__/
 
 venv/
 .streamlit/secrets.toml
+.vercel
+.env*

@@ -1,48 +1,46 @@
-"""Sentence-Transformers wrapper. Vectors are L2-normalised so cosine == dot product."""
-from __future__ import annotations
-
-import logging
-
+﻿import os
+from pinecone import Pinecone
 from .exceptions import EmbeddingError
-
-logger = logging.getLogger(__name__)
 
 
 class Embedder:
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str = "multilingual-e5-large"):
         self.model_name = model_name
-        self._model = None
+        self._client = None
 
     @property
-    def model(self):
-        if self._model is None:
-            try:
-                from sentence_transformers import SentenceTransformer
-
-                logger.info("Loading embedding model %s", self.model_name)
-                self._model = SentenceTransformer(self.model_name)
-            except Exception as exc:  # noqa: BLE001
-                raise EmbeddingError(f"Could not load embedding model: {exc}") from exc
-        return self._model
+    def client(self):
+        if self._client is None:
+            api_key = os.getenv("PINECONE_API_KEY")
+            if not api_key:
+                raise EmbeddingError("PINECONE_API_KEY is missing")
+            self._client = Pinecone(api_key=api_key)
+        return self._client
 
     @property
     def dimension(self) -> int:
-        return int(self.model.get_sentence_embedding_dimension())
+        return 1024
 
     def embed_documents(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
         if not texts:
             return []
         try:
-            vectors = self.model.encode(
-                texts,
-                batch_size=batch_size,
-                normalize_embeddings=True,
-                show_progress_bar=False,
-                convert_to_numpy=True,
+            result = self.client.inference.embed(
+                model=self.model_name,
+                inputs=texts,
+                parameters={"input_type": "passage", "truncate": "END"},
             )
-        except Exception as exc:  # noqa: BLE001
+            return [item.values for item in result.data]
+        except Exception as exc:
             raise EmbeddingError(f"Embedding failed: {exc}") from exc
-        return vectors.tolist()
 
     def embed_query(self, query: str) -> list[float]:
-        return self.embed_documents([query])[0]
+        try:
+            result = self.client.inference.embed(
+                model=self.model_name,
+                inputs=[query],
+                parameters={"input_type": "query", "truncate": "END"},
+            )
+            return result.data[0].values
+        except Exception as exc:
+            raise EmbeddingError(f"Query embedding failed: {exc}") from exc

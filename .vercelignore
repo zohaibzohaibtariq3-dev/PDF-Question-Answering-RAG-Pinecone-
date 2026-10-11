@@ -1,0 +1,12 @@
+﻿venv/
+.venv/
+**/venv/
+**/.venv/
+.git/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+logs/
+tests/
+docs/
+app_streamlit_backup.py
