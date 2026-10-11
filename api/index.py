@@ -81,8 +81,14 @@ def ask_question(request: AskRequest):
                 for source in answer.sources
             ],
         }
-    except Exception:
-        raise HTTPException(status_code=500, detail="Could not answer the question")
+   
+    except Exception as exc:
+        import logging
+        logging.exception("Ask endpoint failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ask failed: {type(exc).__name__}: {exc}",
+        )
 
 
 @app.delete("/api/documents/{namespace}")
