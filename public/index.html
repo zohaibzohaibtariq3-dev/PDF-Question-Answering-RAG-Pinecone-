@@ -42,6 +42,7 @@ button:disabled{opacity:.5}#status,#answer{white-space:pre-wrap;overflow-wrap:an
 </section>
 <script>
 const $=id=>document.getElementById(id);
+let activeNamespace=null;
 async function request(url,options={}){
  const response=await fetch(url,options);
  const data=await response.json().catch(()=>({detail:"Unexpected server response"}));
@@ -53,18 +54,18 @@ $("uploadForm").addEventListener("submit",async e=>{
  $("uploadBtn").disabled=true;$("status").textContent="Uploading and indexing...";
  try{
   const body=new FormData();body.append("file",file);
-  const d=await request("/api/ingest",{method:"POST",body});
+  const d=await request("/api/ingest",{method:"POST",body}); activeNamespace=d.namespace;
   $("status").textContent=`Success! ${d.filename}\nPages: ${d.pages} | Chunks: ${d.chunks} | Time: ${Number(d.seconds).toFixed(1)}s\nNamespace: ${d.namespace}`;
   await loadDocuments();
  }catch(err){$("status").textContent="Error: "+err.message}
  finally{$("uploadBtn").disabled=false}
 });
 $("askForm").addEventListener("submit",async e=>{
- e.preventDefault();const question=$("question").value.trim();if(!question)return;
+ e.preventDefault();const question=$("question").value.trim();if(!question)return;if(!activeNamespace){$("answer").textContent="Please upload a PDF first, then ask your question.";return;}
  $("askBtn").disabled=true;$("answer").textContent="Thinking...";
  $("sources").replaceChildren();
  try{
-  const d=await request("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
+  const d=await request("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question,namespaces:activeNamespace?[activeNamespace]:[]})});
   $("answer").textContent=d.answer||"No answer returned.";
   (d.sources||[]).forEach((s,i)=>{
    const div=document.createElement("div");div.className="source";
@@ -86,3 +87,4 @@ $("refreshBtn").addEventListener("click",loadDocuments);
 loadDocuments();
 </script>
 </main></body></html>
+
